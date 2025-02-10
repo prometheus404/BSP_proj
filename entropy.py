@@ -57,9 +57,32 @@ def rpEnN(J, m):
     return -(log(sum([p[j_i] ** 2 for j_i in p])) / log(m))
 
 
+def bubble_sort(l):
+    l = list(l)
+    res = 0
+    swapped = False
+    for i in range(len(l)):
+        for j in range(len(l) - i - 1):
+            if l[j] > l[j + 1]:
+                l[j], l[j + 1] = l[j + 1], l[j]
+                res += 1
+                swapped = True
+        if not swapped:
+            break
+    return res, l
+
+
+def bbEn(X):
+    return rpEn([bubble_sort(x_i)[0] for x_i in X])
+
+
 # print(probabilities(J))
 if __name__ == "__main__":
     x = [6, 2, 1, 4, 5, 3, 2, 1, 4, 3, 2, 1]  # timeserie
+    print(x)
+    print(bubble_sort(x[:]))
+    print(x)
+    print(bubble_sort([1]))
     x = ann2rr("nsr2/nsr001", "ecg")
     x2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     x2 = ann2rr("chf2/chf201", "ecg")
@@ -72,7 +95,7 @@ if __name__ == "__main__":
     print("entropy:", peEn(J))
     print("entropy of second signal: ", peEn(compute_toi(embed(x2, m))))
     print("entropy of reversed second signal: ", peEn(compute_toi(embed(x3, m))))
-    for i in tqdm(range(1, 29)):
+    for i in tqdm(range(1, 3)):
         # name = f"chf2/chf2{i:02}"
         name = f"nsr2/nsr{i:03}"
         x = ann2rr(name, "ecg")
