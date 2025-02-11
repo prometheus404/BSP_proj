@@ -73,6 +73,7 @@ def bubble_sort(l):
 
 
 def bbEn(X):
+    # TODO faster bubble_sort exploiting the fact that X_i and X_i+1 differ only for one element
     return rpEn([bubble_sort(x_i)[0] for x_i in X])
 
 
