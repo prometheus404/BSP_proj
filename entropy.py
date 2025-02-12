@@ -3,10 +3,11 @@ from math import log
 from wfdb.processing import ann2rr
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import numpy as np
 
 
 def embed(timeserie, m):
-    """returns a the embeddings of size m of the timeserie"""
+    """return the embeddings of size m of the timeserie"""
     return [
         tuple([timeserie[e] for e in range(i, i + m)])
         for i in range(len(timeserie) - m + 1)
@@ -14,7 +15,7 @@ def embed(timeserie, m):
 
 
 def compute_toi(timeserie):
-    """computes the timeserie of indices from the input timeserie"""
+    """return the timeserie of indices from the input timeserie"""
     return [
         tuple([index for (index, _) in sorted(enumerate(t_i), key=lambda x: x[1])])
         for t_i in timeserie
@@ -22,7 +23,7 @@ def compute_toi(timeserie):
 
 
 def probabilities(timeserie):
-    """computes the probabilities of each pattern in the timeserie"""
+    """return the probabilities of each pattern in the timeserie"""
     p = defaultdict(int)
     for t in timeserie:
         p[t] += 1
@@ -32,7 +33,7 @@ def probabilities(timeserie):
 
 
 def peEn(J):
-    """computes the Shannon Entropy of the timeserie of indices"""
+    """return the Shannon Entropy of the timeserie of indices"""
     p = probabilities(J)
     return -sum([p[j_i] * log(p[j_i]) for j_i in p])
 
@@ -75,6 +76,73 @@ def bubble_sort(l):
 def bbEn(X):
     # TODO faster bubble_sort exploiting the fact that X_i and X_i+1 differ only for one element
     return rpEn([bubble_sort(x_i)[0] for x_i in X])
+
+
+def entropies_for_m_range(filenames, m_range):
+    """For each entropy measure and for each signal in filenames
+    compute the entropy using the range of embedding size defined.
+
+    This function is optimized for computation of subsequent values of m: embeddings are compted
+    only once and used for each entropy measure.
+
+    TODO: for bbEn we could exploit the fact that the embeddings at dimension m are almost the same
+          as the embeddings at dimension m+1 except for one element, so we could simply add to the last bbEn value for
+          the embedding the ordering of the last element.
+          Note however that this way we should further unpack the bbEn function.
+
+    arguments:
+    filenames -- the names of the files from which signals are read
+    (TODO this should be an iterator on signals in order to abstract from the filetype)
+    m_range -- the range of values of the embedding size
+    """
+
+    entropies = np.zeros((len(m_range), len(filenames), 5))
+    for m in tqdm(m_range):
+        # res = np.zeros((len(signals), 4))
+        for i, s in enumerate(filenames):
+            x = ann2rr(s, "ecg")
+            X = embed(x, m)
+            J = compute_toi(X)
+            entropies[m - m_range.start, i] = [
+                peEn(J),
+                rpEn(J),
+                0,
+                0,
+                bbEn(X),
+            ]
+
+    # compute conditional permutation entropy
+    entropies[:, :, 2] = [
+        entropies[m + 1, :, 0] - entropies[m, :, 0]
+        if m < entropies.shape[0] - 1
+        else (np.zeros(entropies.shape[1]))
+        for m in range(entropies.shape[0])
+    ]
+
+    # compute conditional renyi permutation entropy
+    entropies[:, :, 3] = [
+        (entropies[m + 1, :, 1] - entropies[m, :, 1]) / log(m + m_range.start + 1)
+        if m < entropies.shape[0] - 1
+        else np.zeros(entropies.shape[1])
+        for m in range(entropies.shape[0])
+    ]
+
+    # compute renyi on bubble entropy
+    entropies[:, :, 4] = [
+        (entropies[m + 1, :, 4] - entropies[m, :, 4])
+        / log((m + m_range.start + 1) / (m + m_range.start - 1))
+        if m < entropies.shape[0] - 1
+        else np.zeros(entropies.shape[1])
+        for m in range(entropies.shape[0])
+    ]
+
+    # normalize renyi entropy
+    entropies[:, :, 1] = [
+        [x / log(m + m_range.start) for x in e]
+        for m, e in enumerate(entropies[:, :, 1])
+    ]
+
+    return entropies
 
 
 # print(probabilities(J))
