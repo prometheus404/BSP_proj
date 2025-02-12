@@ -90,10 +90,12 @@ def entropies_for_m_range(filenames, m_range):
           the embedding the ordering of the last element.
           Note however that this way we should further unpack the bbEn function.
 
-    arguments:
-    filenames -- the names of the files from which signals are read
-    (TODO this should be an iterator on signals in order to abstract from the filetype)
-    m_range -- the range of values of the embedding size
+    Args:
+        filenames: The names of the files from which signals are read
+        (TODO this should be an iterator on signals in order to abstract from the filetype)
+        m_range: The range of values of the embedding size
+    Returns:
+        A three dimension (m value, signal, entropy measure) numpy array
     """
 
     entropies = np.zeros((len(m_range), len(filenames), 5))
