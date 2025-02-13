@@ -1,13 +1,13 @@
 from collections import defaultdict
 from math import log
 from wfdb.processing import ann2rr
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
 import time
 
 
-def embed(timeserie, m):
+##### UTILS
+def _embed(timeserie, m):
     """return the embeddings of size m of the timeserie"""
     return [
         tuple([timeserie[e] for e in range(i, i + m)])
@@ -15,7 +15,7 @@ def embed(timeserie, m):
     ]
 
 
-def compute_toi(timeserie):
+def _compute_toi(timeserie):
     """return the timeserie of indices from the input timeserie"""
     return [
         tuple([index for (index, _) in sorted(enumerate(t_i), key=lambda x: x[1])])
@@ -23,7 +23,7 @@ def compute_toi(timeserie):
     ]
 
 
-def probabilities(timeserie):
+def _probabilities(timeserie):
     """return the probabilities of each pattern in the timeserie"""
     p = defaultdict(int)
     for t in timeserie:
@@ -33,33 +33,44 @@ def probabilities(timeserie):
     return p
 
 
-def peEn(J):
+###### PERMUTATION ENTROPY
+def _peEn(J):
     """return the Shannon Entropy of the timeserie of indices"""
-    p = probabilities(J)
+    p = _probabilities(J)
     return -sum([p[j_i] * log(p[j_i]) for j_i in p])
 
 
-def cPE(prev, next):
-    return next - prev
+def peEn(timeserie, m):
+    """return the Shannon Entropy of a timeserie using embedding size m"""
+    return _peEn(_compute_toi(_embed(timeserie, m)))
 
 
-def cRpEn(prev, next, m):
-    return (next - prev) / log(m + 1)
+def cPE(timeserie, m):
+    """return the conditional permutation entropy of a timeserie using embedding size m"""
+    return peEn(timeserie, m + 1) - peEn(timeserie, m)
 
 
-def rpEn(J):
-    p = probabilities(J)
+###### RENYI PERMUTATION ENTROPY
+def _rpEn(J, m=0):
+    """return an unnormalized rpen with alpha = 2 if m = 0, a normalized rpen otherwise"""
+    p = _probabilities(J)
     # TODO maybe since probabilities is used by both rpEn and peEn, this should be the argument
-    return -log(sum([p[j_i] ** 2 for j_i in p]))
+    if m == 0:
+        return -log(sum([p[j_i] ** 2 for j_i in p]))
+    else:
+        return -(log(sum([p[j_i] ** 2 for j_i in p])) / log(m))
 
 
-def rpEnN(J, m):
-    p = probabilities(J)
-    # TODO maybe since probabilities is used by both rpEn and peEn, this should be the argument
-    return -(log(sum([p[j_i] ** 2 for j_i in p])) / log(m))
+def rpEn(timeserie, m):
+    return _rpEn(_compute_toi(_embed(timeserie, m)), m)
 
 
-def bubble_sort(l):
+def cRpEn(timeserie, m):
+    return (rpEn(timeserie, m + 1) - rpEn(timeserie, m)) / log(m + 1)
+
+
+###### BUBBLE ENTROPY
+def _bubble_sort(l):
     l = list(l)
     res = 0
     swapped = False
@@ -74,11 +85,11 @@ def bubble_sort(l):
     return res, l
 
 
-def not_eff_bbEn(X):
-    return rpEn([bubble_sort(x_i)[0] for x_i in X])
+def _not_eff_bbEn(X):
+    return _rpEn([_bubble_sort(x_i)[0] for x_i in X])
 
 
-def fast_sort(to_remove, to_add, prev_sorted):
+def _fast_sort(to_remove, to_add, prev_sorted):
     pos = prev_sorted.index(to_remove)
     prev_sorted = prev_sorted[:pos] + prev_sorted[pos + 1 :]
     for index, element in enumerate(prev_sorted):
@@ -88,17 +99,24 @@ def fast_sort(to_remove, to_add, prev_sorted):
     return -pos, prev_sorted + [to_add]
 
 
-def bbEn(X):
+def _bbEn(X):
     to_remove = X[0][0]
-    i, prev_sorted = bubble_sort(X[0])
+    i, prev_sorted = _bubble_sort(X[0])
     J = [i]
     sorted = [prev_sorted]
     for x_i in X[1:]:
-        r, prev_sorted = fast_sort(to_remove, x_i[-1], prev_sorted)
+        r, prev_sorted = _fast_sort(to_remove, x_i[-1], prev_sorted)
         sorted.append(prev_sorted)
         to_remove = x_i[0]
         J.append(r + J[-1])
-    return rpEn(J)
+    return _rpEn(J)
+
+
+def bbEn(timeserie, m):
+    """return bubble entropy of timeserie X using embedding dimension m"""
+    return (_bbEn(_embed(timeserie, m + 1)) - _bbEn(_embed(timeserie, m))) / log(
+        (m + 1) / (m - 1)
+    )
 
 
 def entropies_for_m_range(filenames, m_range):
@@ -126,14 +144,14 @@ def entropies_for_m_range(filenames, m_range):
         # res = np.zeros((len(signals), 4))
         for i, s in enumerate(filenames):
             x = ann2rr(s, "ecg")
-            X = embed(x, m)
-            J = compute_toi(X)
+            X = _embed(x, m)
+            J = _compute_toi(X)
             entropies[m - m_range.start, i] = [
-                peEn(J),
-                rpEn(J),
+                _peEn(J),
+                _rpEn(J),
                 0,
                 0,
-                bbEn(X),
+                _bbEn(X),
             ]
 
     # compute conditional permutation entropy
@@ -167,29 +185,29 @@ def entropies_for_m_range(filenames, m_range):
         for m, e in enumerate(entropies[:, :, 1])
     ]
 
-    return entropies
+    return entropies[:-1, :, :]
 
 
 if __name__ == "__main__":
     x = [6, 2, 1, 4, 5, 3, 2, 1, 4, 3, 2, 1]  # timeserie
     print(x)
-    X = embed(x, 3)
+    X = _embed(x, 3)
     print(X)
-    print(not_eff_bbEn(X))
-    print(bbEn(X))
+    print(_not_eff_bbEn(X))
+    print(_bbEn(X))
 
     # print(bubble_sort(x[:]))
     # print(x)
     # print(bubble_sort([1]))
     x = ann2rr("nsr2/nsr001", "ecg")
     for m in range(2, 20):
-        x_m = embed(x, m)
+        x_m = _embed(x, m)
         start_time = time.time()
-        e2 = bbEn(x_m)
+        e2 = _bbEn(x_m)
         t2 = time.time() - start_time
 
         start_time = time.time()
-        e1 = not_eff_bbEn(x_m)
+        e1 = _not_eff_bbEn(x_m)
         t1 = time.time() - start_time
 
         print(f"-------------m={m}----------")
