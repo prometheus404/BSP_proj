@@ -1,9 +1,8 @@
 from entropy import peEn, rpEn, cPE, cRpEn, bbEn, sampEn, entropies_for_m_range
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
-from wfdb.processing import ann2rr
 from utils import timed, SignalIterator
-
+import numpy as np
 
 ################## ENTROPIES AND SIGNAL LENGTH #################
 # SaEn -> m=2, r=0.2 # peEn, RpEn -> m=9 # cPE, cRpEn-> m=5 # bbEn -> m=10
@@ -15,59 +14,55 @@ functions = [
     ("bbEn", lambda t: bbEn(t, 10)),
     # ("sampEn", lambda t: sampEn(t, 2, 0.2)),
 ]
-timeserie = ann2rr("nsr2/nsr001", "ecg")  # TODO average results from various signals
-n_range = [50 * (2**exp) for exp in range(12)]
-t_fig = plt.figure()
-e_fig = plt.figure()
-t_ax = t_fig.add_subplot(111)
-e_ax = e_fig.add_subplot(111)
 
-for name, f in functions:
-    times = []
-    entropies = []
-    for n in n_range:
-        if name == "sampEn" and n > 50 * (2**8):
-            break
-        t, e = timed(f, timeserie[:n])
-        times.append(t)
-        entropies.append(e)
-    if name == "sampEn":
-        t_ax.plot(n_range[:9], times, label=name)
-        e_ax.plot(n_range[:9], entropies, label=name)
-    else:
-        t_ax.plot(n_range, times, label=name)
-        e_ax.plot(n_range, entropies, label=name)
+n_signals = 20
+n_sample_range = [50 * (2**exp) for exp in range(12)]
+it = SignalIterator(n_signals, "nsr2/nsr{:03d}", list(range(1, 54)))
+entropies = np.zeros((n_signals, len(functions), len(n_sample_range)))
+times = np.zeros((n_signals, len(functions), len(n_sample_range)))
 
-e_ax.set_title("Entropy for various signal length")
-t_ax.set_title("Execution time for various signal length")
-t_ax.set_xlabel("Signal length")
-e_ax.set_xlabel("Signal length")
-t_ax.set_ylabel("Execution time (s)")
-e_ax.set_ylabel("Entropy")
-t_ax.legend(loc="best")
-e_ax.legend(loc="best")
-t_fig.savefig("img/times_for_n_range.svg")
-e_fig.savefig("img/entropies_for_n_range.svg")
-plt.close("all")
+for tn, timeserie in enumerate(it):
+    for fn, (name, f) in enumerate(functions):
+        for nn, n in enumerate(n_sample_range):
+            times[tn, fn, nn], entropies[tn, fn, nn] = timed(f, timeserie[:n])
+
+for i, (name, _) in enumerate(functions):
+    plt.plot(n_sample_range, entropies[:, i, :].mean(0), label=name)
+plt.title("Entropy for various signal length")
+plt.xlabel("Signal length")
+plt.ylabel("Entropy")
+plt.legend(loc="best")
+plt.savefig("img/entropies_for_n_range.svg")
+plt.close()
+for i, f in enumerate(functions):
+    plt.plot(n_sample_range, times[:, i, :].mean(0), label=name)
+plt.title("Execution time for various signal length")
+plt.xlabel("Signal length")
+plt.ylabel("Execution time (s)")
+plt.legend(loc="best")
+plt.savefig("img/times_for_n_range.svg")
+plt.close()
+
 # zoomed
-timeserie = ann2rr("nsr2/nsr001", "ecg")  # TODO average results from various signals
-n_range = range(50, 10000, 100)
-e_fig = plt.figure()
-e_ax = e_fig.add_subplot(111)
+n_signals = 20
+n_sample_range = range(50, 10000, 100)
+it = SignalIterator(n_signals, "nsr2/nsr{:03d}", list(range(1, 54)))
+entropies = np.zeros((n_signals, len(functions), len(n_sample_range)))
 
-for name, f in functions:
-    entropies = []
-    for n in n_range:
-        _, e = timed(f, timeserie[:n])
-        entropies.append(e)
-    e_ax.plot(n_range, entropies, label=name)
+for tn, timeserie in enumerate(it):
+    for fn, (name, f) in enumerate(functions):
+        for nn, n in enumerate(n_sample_range):
+            entropies[tn, fn, nn] = f(timeserie[:n])
 
-e_ax.set_title("Entropy for various signal length (zoomed)")
-e_ax.set_xlabel("Signal length")
-e_ax.set_ylabel("Entropy")
-e_ax.legend(loc="upper right")
-e_fig.savefig("img/entropies_for_n_range_zoom.svg")
-plt.close("all")
+for i, (name, _) in enumerate(functions):
+    plt.plot(n_sample_range, entropies[:, i, :].mean(0), label=name)
+
+plt.title("Entropy for various signal length (zoomed)")
+plt.xlabel("Signal length")
+plt.ylabel("Entropy")
+plt.legend(loc="upper right")
+plt.savefig("img/entropies_for_n_range_zoom.svg")
+plt.close()
 
 ################## NSR ENTROPIES #################
 n_signals = 20
