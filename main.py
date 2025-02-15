@@ -68,7 +68,7 @@ e_ax.set_ylabel("Entropy")
 e_ax.legend(loc="upper right")
 e_fig.savefig("img/entropies_for_n_range_zoom.svg")
 plt.close("all")
-quit()
+
 ################## NSR ENTROPIES #################
 n_signals = 20
 # filenames = [f"nsr2/nsr{n:03}" for n in range(1, 21)]  # signals
