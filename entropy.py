@@ -1,18 +1,15 @@
 from collections import defaultdict
+from itertools import combinations
 from math import log
 from wfdb.processing import ann2rr
 from tqdm import tqdm
 import numpy as np
-import time
 
 
 ##### UTILS
 def _embed(timeserie, m):
     """return the embeddings of size m of the timeserie"""
-    return [
-        tuple([timeserie[e] for e in range(i, i + m)])
-        for i in range(len(timeserie) - m + 1)
-    ]
+    return [tuple(timeserie[i : i + m]) for i in range(len(timeserie) - m + 1)]
 
 
 def _compute_toi(timeserie):
@@ -31,6 +28,25 @@ def _probabilities(timeserie):
     for e in p:
         p[e] /= len(timeserie)
     return p
+
+
+###### SAMPLE ENTROPY
+def _cheb_distance(a, b):
+    return max([abs(a_i - b_i) for a_i, b_i in zip(a, b)])
+
+
+def sampEn(x, m, r):
+    A = sum(
+        [
+            1 if _cheb_distance(a, b) < r else 0
+            for a, b in combinations(_embed(x, m + 1), 2)
+        ]
+    )
+    B = sum(
+        [1 if _cheb_distance(a, b) < r else 0 for a, b in combinations(_embed(x, m), 2)]
+    )
+    print(A, B)
+    return -log(A / B)
 
 
 ###### PERMUTATION ENTROPY
@@ -119,7 +135,7 @@ def bbEn(timeserie, m):
     )
 
 
-def entropies_for_m_range(filenames, m_range):
+def entropies_for_m_range(signals, m_range):
     """For each entropy measure and for each signal in filenames
     compute the entropy using the range of embedding size defined.
 
@@ -138,12 +154,15 @@ def entropies_for_m_range(filenames, m_range):
     Returns:
         A three dimension (m value, signal, entropy measure) numpy array
     """
-
-    entropies = np.zeros((len(m_range), len(filenames), 5))
+    m_range = range(
+        m_range.start, m_range.stop + 1
+    )  # this kinda defies the idea behind using a range
+    entropies = np.zeros((len(m_range), len(signals), 5))
     for m in tqdm(m_range):
         # res = np.zeros((len(signals), 4))
-        for i, s in enumerate(filenames):
-            x = ann2rr(s, "ecg")
+        for i, x in enumerate(signals):
+            print(i, x)
+            # x = ann2rr(s, "ecg")
             X = _embed(x, m)
             J = _compute_toi(X)
             entropies[m - m_range.start, i] = [
@@ -189,47 +208,6 @@ def entropies_for_m_range(filenames, m_range):
 
 
 if __name__ == "__main__":
-    x = [6, 2, 1, 4, 5, 3, 2, 1, 4, 3, 2, 1]  # timeserie
-    print(x)
-    X = _embed(x, 3)
-    print(X)
-    print(_not_eff_bbEn(X))
-    print(_bbEn(X))
-
-    # print(bubble_sort(x[:]))
-    # print(x)
-    # print(bubble_sort([1]))
-    x = ann2rr("nsr2/nsr001", "ecg")
-    for m in range(2, 20):
-        x_m = _embed(x, m)
-        start_time = time.time()
-        e2 = _bbEn(x_m)
-        t2 = time.time() - start_time
-
-        start_time = time.time()
-        e1 = _not_eff_bbEn(x_m)
-        t1 = time.time() - start_time
-
-        print(f"-------------m={m}----------")
-        print("efficient:", "res", e2, "time", t2)
-        print("not efficient:", "res", e1, "time", t1)
-        assert e1 == e2
-
-    # x2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    # x2 = ann2rr("chf2/chf201", "ecg")
-    # x3 = list(reversed(x2))
-    # # print(x3)
-    # m = 7  # embed ded space size
-    # X = embed(x, m)
-    # J = compute_toi(X)
-    # # print("timeserie of indices: ", J)
-    # print("entropy:", peEn(J))
-    # print("entropy of second signal: ", peEn(compute_toi(embed(x2, m))))
-    # print("entropy of reversed second signal: ", peEn(compute_toi(embed(x3, m))))
-    # for i in tqdm(range(1, 3)):
-    #     # name = f"chf2/chf2{i:02}"
-    #     name = f"nsr2/nsr{i:03}"
-    #     x = ann2rr(name, "ecg")
-    #     plt.plot([peEn(compute_toi(embed(x, m))) for m in tqdm(range(1, 20))])
-    # # plt.plot([peEn(compute_toi(embed(x2, m))) for m in range(1, 20)])
-    # plt.show()
+    x = ann2rr("chf2/chf201", "ecg")
+    print(_cheb_distance((1, 10, 1), (4, 1, 3)))
+    print(sampEn(x[:10000], 2, 0.2))
