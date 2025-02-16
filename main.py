@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
 from utils import timed, SignalIterator
 import numpy as np
+# from sampen import sampen2
 
 ################## ENTROPIES AND SIGNAL LENGTH #################
 # SaEn -> m=2, r=0.2 # peEn, RpEn -> m=9 # cPE, cRpEn-> m=5 # bbEn -> m=10
@@ -12,6 +13,7 @@ functions = [
     ("cPE", lambda t: cPE(t, 5)),
     ("cRpEn", lambda t: cRpEn(t, 5)),
     ("bbEn", lambda t: bbEn(t, 10)),
+    # ("sampEn", lambda t: sampen2(t, 2, 0.2)[2][1]),
     # ("sampEn", lambda t: sampEn(t, 2, 0.2)),
 ]
 
@@ -22,7 +24,9 @@ entropies = np.zeros((n_signals, len(functions), len(n_sample_range)))
 times = np.zeros((n_signals, len(functions), len(n_sample_range)))
 
 for tn, timeserie in enumerate(it):
+    print(f"signal {tn}/{n_signals}")
     for fn, (name, f) in enumerate(functions):
+        print(name)
         for nn, n in enumerate(n_sample_range):
             times[tn, fn, nn], entropies[tn, fn, nn] = timed(f, timeserie[:n])
 
@@ -34,7 +38,7 @@ plt.ylabel("Entropy")
 plt.legend(loc="best")
 plt.savefig("img/entropies_for_n_range.svg")
 plt.close()
-for i, f in enumerate(functions):
+for i, (name, _) in enumerate(functions):
     plt.plot(n_sample_range, times[:, i, :].mean(0), label=name)
 plt.title("Execution time for various signal length")
 plt.xlabel("Signal length")
