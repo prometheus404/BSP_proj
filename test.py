@@ -86,6 +86,25 @@ plt.legend(loc="best")
 plt.savefig("img/entropies_for_m_range_nsr.svg")
 plt.close()
 
+# timed test
+times = np.zeros((n_signals, len(functions), len(m_range)))
+
+for fn, (name, f) in enumerate(functions):
+    for mn, m in enumerate(m_range):
+        for tn, timeserie in enumerate(it):
+            times[tn, fn, mn], _ = timed(f, timeserie)
+            print(times[tn, fn, mn])
+
+for i, (name, _) in enumerate(functions):
+    plt.plot(m_range, times[:, i, :].mean(0), label=name)
+plt.title("Execution time for various embedding dimension m")
+plt.xlabel("Value of m")
+plt.ylabel("Execution time (s)")
+plt.legend(loc="center right")
+plt.savefig("img/times_for_m_range.svg")
+plt.close()
+
+
 ################## CHF ENTROPIES #################
 # filenames = [f"chf2/chf2{n:02}" for n in range(1, 21)]
 it = SignalIterator(n_signals, "chf2/chf2{:02d}", list(range(1, 29)))
