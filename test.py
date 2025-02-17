@@ -1,10 +1,11 @@
+from os import cpu_count
 from entropy import peEn, rpEn, cPE, cRpEn, bbEn, sampEn, entropies_for_m_range
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
 from utils import timed, SignalIterator
 import numpy as np
-# from sampen import sampen2
 
+# from sampen import sampen2
 ################## ENTROPIES AND SIGNAL LENGTH #################
 # SaEn -> m=2, r=0.2 # peEn, RpEn -> m=9 # cPE, cRpEn-> m=5 # bbEn -> m=10
 functions = [
@@ -87,15 +88,20 @@ plt.savefig("img/entropies_for_m_range_nsr.svg")
 plt.close()
 
 # timed test
-times = np.zeros((n_signals, len(functions), len(m_range)))
+n_signals = 20
 
-for fn, (name, f) in enumerate(functions):
+functions = [peEn, rpEn, cPE, cRpEn, bbEn]
+labels = ["peEn", "RpEn", "cPE", "cRpEn", "bbEn"]
+times = np.zeros((n_signals, len(functions), len(m_range)))
+for fn, f in enumerate(functions):
+    print(f)
     for mn, m in enumerate(m_range):
+        print(m)
         for tn, timeserie in enumerate(it):
-            times[tn, fn, mn], _ = timed(f, timeserie)
+            times[tn, fn, mn], _ = timed(f, timeserie, m)
             print(times[tn, fn, mn])
 
-for i, (name, _) in enumerate(functions):
+for i, name in enumerate(labels):
     plt.plot(m_range, times[:, i, :].mean(0), label=name)
 plt.title("Execution time for various embedding dimension m")
 plt.xlabel("Value of m")

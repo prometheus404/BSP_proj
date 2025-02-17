@@ -5,9 +5,9 @@ import random
 random.seed(42)
 
 
-def timed(func, arg):
+def timed(func, *args):
     start = time()
-    res = func(arg)
+    res = func(*args)
     return time() - start, res
 
 
